@@ -356,7 +356,10 @@ export class ImageCompositor {
       </svg>`;
       const tex = sharp(Buffer.from(svg)).png();
       const [b, t] = await Promise.all([base.toBuffer(), tex.toBuffer()]);
-      const blend: sharp.Blend = (spec.blend as any) || 'overlay';
+      // Normalize potential camelCase blend from persisted advice
+      const rawBlend = (spec.blend as any) || 'overlay';
+      const normalizedBlend = rawBlend === 'softLight' ? 'soft-light' : rawBlend;
+      const blend: sharp.Blend = normalizedBlend as sharp.Blend;
       return sharp(b).composite([{ input: t, left: 0, top: 0, blend }]).png().toBuffer();
     }
     return null;

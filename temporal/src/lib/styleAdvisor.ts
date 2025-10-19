@@ -24,7 +24,7 @@ export async function adviseBookStyle(bookId: string, prefs: BookPrefs): Promise
   const fallback: BookStyleAdvice = {
     defaultPalette: ['#FFB703', '#FB8500', '#219EBC', '#8ECAE6', '#023047'],
     defaultLayout: 'imageTop',
-    background: { kind: 'solid', color: '#ffffff' },
+    background: { kind: 'textured', baseColor: '#fff7f0', texture: 'watercolor', blend: 'soft-light', intensity: 0.18 },
   };
   if (!config.getApiKey()) return fallback;
 
@@ -42,6 +42,14 @@ export async function adviseBookStyle(bookId: string, prefs: BookPrefs): Promise
     });
     const content = resp.choices?.[0]?.message?.content || '';
     const advice = JSON.parse(content) as BookStyleAdvice;
+    // Normalize blend mode: AI may return 'softLight' but Sharp expects 'soft-light'
+    if (advice.background && 'blend' in advice.background && advice.background.blend === 'softLight' as any) {
+      (advice.background as any).blend = 'soft-light';
+    }
+    // Validate solid background has color
+    if (advice.background && advice.background.kind === 'solid' && !(advice.background as any).color) {
+      (advice.background as any).color = '#ffffff';
+    }
     await fs.writeFile(stylePath, JSON.stringify(advice, null, 2), 'utf8');
     return advice;
   } catch {
@@ -61,11 +69,16 @@ export async function advisePageStyle(bookId: string, page: PageJSON, prefs: Boo
   try { await fs.mkdir(pageDir, { recursive: true }); } catch {}
 
   // Fallback if AI not available
+  const textures = ['watercolor', 'canvas', 'linen', 'grain'] as const;
+  const tex = textures[page.pageIndex % textures.length];
+  const palette = ['#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93'];
+  const baseColor = '#fff9f2';
   const fallback: PageStyleAdvice = {
-    palette: ['#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93'],
+    palette,
     layoutStyle: page.layout === 'imageTop' ? 'imageTop' : page.layout === 'imageLeft' ? 'imageLeft' : page.layout === 'imageRight' ? 'imageRight' : 'card',
-    background: { kind: 'solid', color: '#ffffff' },
+    background: { kind: 'textured', baseColor, texture: tex as any, blend: 'soft-light', intensity: 0.18 },
     saturationBoost: 0.15,
+    textColor: '#1f2430',
   };
   if (!config.getApiKey()) {
     await fs.writeFile(stylePath, JSON.stringify(fallback, null, 2), 'utf8');
@@ -86,6 +99,14 @@ export async function advisePageStyle(bookId: string, page: PageJSON, prefs: Boo
     });
     const content = resp.choices?.[0]?.message?.content || '';
     const advice = JSON.parse(content) as PageStyleAdvice;
+    // Normalize blend mode: AI may return 'softLight' but Sharp expects 'soft-light'
+    if (advice.background && 'blend' in advice.background && advice.background.blend === 'softLight' as any) {
+      (advice.background as any).blend = 'soft-light';
+    }
+    // Validate solid background has color
+    if (advice.background && advice.background.kind === 'solid' && !(advice.background as any).color) {
+      (advice.background as any).color = '#ffffff';
+    }
     await fs.writeFile(stylePath, JSON.stringify(advice, null, 2), 'utf8');
     return advice;
   } catch {

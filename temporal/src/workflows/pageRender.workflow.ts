@@ -29,11 +29,11 @@ export interface PageRenderInput {
   print: PrintSpec;
   plan: PageLayoutPlan;
   prefs?: BookPrefs;
-  /** Use professional rendering pipeline (optional, defaults to false for backward compatibility) */
+  /** Use professional rendering pipeline (defaults to true - recommended) */
   useProfessionalRender?: boolean;
   /** Print profile ID for professional rendering (e.g., 'printOffice', 'printCommercial') */
   printProfileId?: string;
-  /** Generate multiple render targets (screen, proof, print) */
+  /** Generate multiple render targets - uses renderPageProfessional (screen, proof, print) */
   multipleRenderTargets?: Array<'screen' | 'proof' | 'print'>;
 }
 
@@ -55,9 +55,11 @@ export interface PageRenderResult {
  * - Better observability in Temporal UI
  * - History stays bounded per page
  * 
- * Supports both legacy and professional rendering pipelines:
- * - Legacy: renderPageJPEGPrint (backward compatible)
- * - Professional: renderPageJPEGPrintEnhanced or renderPageProfessional
+ * Rendering pipeline (RECOMMENDED: Professional):
+ * - Professional (Default): renderPageProfessional - newest, most flexible
+ *   - Supports multiple output targets (screen, proof, print)
+ *   - Best quality with professional profiles
+ * - Legacy: renderPageJPEGPrint - kept for backward compatibility only
  */
 export async function PageRenderWorkflow(input: PageRenderInput): Promise<PageRenderResult> {
   const { 
@@ -68,9 +70,9 @@ export async function PageRenderWorkflow(input: PageRenderInput): Promise<PageRe
     print, 
     plan,
     prefs,
-    useProfessionalRender = false,
+    useProfessionalRender = true,  // Changed default to true - professional is now default
     printProfileId = 'printOffice',
-    multipleRenderTargets,
+    multipleRenderTargets = ['print'],  // Default to print profile with professional pipeline
   } = input;
   
   try {
@@ -105,9 +107,10 @@ export async function PageRenderWorkflow(input: PageRenderInput): Promise<PageRe
     let printPath: string;
     let renderPaths: Record<string, string> | undefined;
     
-    // Choose rendering pipeline
-    if (multipleRenderTargets && multipleRenderTargets.length > 0) {
-      // Professional rendering with multiple targets
+    // Choose rendering pipeline (Default: Professional)
+    if (useProfessionalRender) {
+      // Professional rendering (RECOMMENDED - Default)
+      // This is the best and newest rendering pipeline
       renderPaths = await render.renderPageProfessional(
         bookId,
         page,
@@ -131,19 +134,9 @@ export async function PageRenderWorkflow(input: PageRenderInput): Promise<PageRe
       } catch {}
       // Use print target as main path for backward compatibility
       printPath = renderPaths.print || renderPaths[multipleRenderTargets[0]];
-    } else if (useProfessionalRender) {
-      // Professional rendering with single target
-      printPath = await render.renderPageJPEGPrintEnhanced(
-        bookId,
-        page,
-        illustrationPath,
-        print,
-        plan,
-        printProfileId,
-      );
-      try { if (parent) await parent.signal('printReady', page.pageIndex, 'print', printPath); } catch {}
     } else {
-      // Legacy rendering (backward compatible)
+      // Legacy rendering (backward compatible - NOT RECOMMENDED)
+      // Only kept for backward compatibility
       printPath = await render.renderPageJPEGPrint(
         bookId,
         page,

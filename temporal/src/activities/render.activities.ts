@@ -323,16 +323,8 @@ export async function renderPageProfessional(
     left: inchesToPixels(print.marginsIn.left, print.dpi),
   };
 
-  // Typography configuration
+  // Typography base size (color decided after loading style advice)
   const fontSize = layout.fontSizePx ?? optimalFontSize(layout.textRect.width);
-  const typographyConfig: TypographyConfig = {
-    fontFamily: layout.fontFamily ?? FONT_STACKS.body,
-    fontSize,
-    fontWeight: 400,
-    lineHeight: layout.lineHeight ?? 1.3,
-    textAlign: layout.textAlign ?? 'left',
-    color: '#222222',
-  };
 
   // Load page-level or book-level style advice (best-effort)
   let pageAdvice: PageStyleAdvice | null = null;
@@ -364,6 +356,16 @@ export async function renderPageProfessional(
   } catch {}
   const effectiveBackground: BackgroundSpec | undefined = pageAdvice?.background || bookAdvice?.background;
   const saturationBoost = typeof pageAdvice?.saturationBoost === 'number' ? pageAdvice!.saturationBoost : undefined;
+
+  // Typography configuration (after style advice is available)
+  const typographyConfig: TypographyConfig = {
+    fontFamily: layout.fontFamily ?? FONT_STACKS.body,
+    fontSize,
+    fontWeight: 400,
+    lineHeight: layout.lineHeight ?? 1.35,
+    textAlign: layout.textAlign ?? 'left',
+    color: pageAdvice?.textColor || '#1f2430',
+  };
 
   // Render for each profile
   for (const profileType of profiles) {
@@ -431,15 +433,46 @@ export async function renderPageJPEGPrintEnhanced(
     left: inchesToPixels(print.marginsIn.left, profile.dpi),
   };
 
-  // Typography configuration
+  // Typography base (color decided after reading style advice)
   const fontSize = layout.fontSizePx ?? optimalFontSize(layout.textRect.width);
+
+  // Load page-level or book-level style advice (best-effort)
+  let pageAdvice: PageStyleAdvice | null = null;
+  let bookAdvice: BookStyleAdvice | null = null;
+  try {
+    const p = path.join(BOOKS_DIR, bookId, 'pages', String(page.pageIndex), 'style.json');
+    const raw = await fs.readFile(p, 'utf8');
+    pageAdvice = JSON.parse(raw);
+  } catch {}
+  try {
+    const b = path.join(BOOKS_DIR, bookId, 'style.json');
+    const raw = await fs.readFile(b, 'utf8');
+    bookAdvice = JSON.parse(raw);
+  } catch {}
+  // If missing, compute and persist via advisor (best-effort)
+  try {
+    if (!bookAdvice) {
+      const manifestRaw = await fs.readFile(path.join(BOOKS_DIR, bookId, 'manifest.json'), 'utf8');
+      const manifest = JSON.parse(manifestRaw);
+      bookAdvice = await adviseBookStyle(bookId, manifest.prefs);
+    }
+  } catch {}
+  try {
+    if (!pageAdvice) {
+      const manifestRaw = await fs.readFile(path.join(BOOKS_DIR, bookId, 'manifest.json'), 'utf8');
+      const manifest = JSON.parse(manifestRaw);
+      pageAdvice = await advisePageStyle(bookId, page, manifest.prefs);
+    }
+  } catch {}
+  const effectiveBackground: BackgroundSpec | undefined = pageAdvice?.background || bookAdvice?.background;
+
   const typographyConfig: TypographyConfig = {
     fontFamily: layout.fontFamily ?? FONT_STACKS.body,
     fontSize,
     fontWeight: 400,
     lineHeight: layout.lineHeight ?? 1.3,
     textAlign: layout.textAlign ?? 'left',
-    color: '#222222',
+    color: pageAdvice?.textColor || '#1f2430',
   };
 
   // Create rendering pipeline
@@ -452,6 +485,7 @@ export async function renderPageJPEGPrintEnhanced(
     layoutStyle: layout.style,
     typographyConfig,
     backgroundColor: '#ffffff',
+    backgroundSpec: effectiveBackground,
     forcedLines: page.formatted?.lines,
   });
 

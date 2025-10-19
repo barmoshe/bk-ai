@@ -198,7 +198,12 @@ export function generateTextSVG(
 
   // OpenType features for professional typography
   const fontFeatures = config.openTypeFeatures || ['liga', 'kern'];
-  const fontFeatureSettings = fontFeatures.map(f => `"${f}" 1`).join(', ');
+  // Use single quotes around feature tags to avoid double quotes inside XML attribute values
+  const fontFeatureSettings = fontFeatures.map(f => `'${f}' 1`).join(', ');
+
+  // Escape attribute values that may contain quotes (e.g., font family stacks)
+  const safeFontFamily = escapeXml(config.fontFamily);
+  const safeColor = color; // color values like #RRGGBB are safe; keep as-is
 
   const textElements = lineItems.map((line) => {
     const alignment = applyOpticalAlignment(line.text);
@@ -214,11 +219,11 @@ export function generateTextSVG(
     const y = box.y + effectiveFontSize + line.y;
 
     return `<text x="${x}" y="${y}" 
-      font-family="${config.fontFamily}"
+      font-family="${safeFontFamily}"
       font-size="${effectiveFontSize}"
       font-weight="${config.fontWeight}"
       letter-spacing="${letterSpacing}em"
-      fill="${color}"
+      fill="${safeColor}"
       style="font-feature-settings: ${fontFeatureSettings}">${escapeXml(line.text)}</text>`;
   }).join('\n    ');
 
