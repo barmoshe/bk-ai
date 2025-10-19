@@ -199,7 +199,7 @@ export type BackgroundSpec =
       kind: 'textured';
       baseColor: string;
       texture: 'paper' | 'canvas' | 'watercolor' | 'grain' | 'halftone' | 'crayon' | 'linen';
-      blend?: 'multiply' | 'overlay' | 'softLight';
+      blend?: 'multiply' | 'overlay' | 'soft-light';
       intensity?: number; // 0..1
     };
 
@@ -215,6 +215,7 @@ export interface PageStyleAdvice {
   background: BackgroundSpec;
   decoration?: DecorationPackChoice;
   saturationBoost?: number; // 0..0.4 typical for screen
+  textColor?: string;
 }
 
 export interface BookStyleAdvice {

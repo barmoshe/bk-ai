@@ -244,7 +244,8 @@ export async function decidePrintAndLayouts(
     }
     sampleWidths.sort((a, b) => a - b);
     const medianWidth = sampleWidths.length === 0 ? widthPx : sampleWidths[Math.floor(sampleWidths.length / 2)];
-    const lockedFontSize = optimalFontSize(medianWidth);
+    // Use fewer characters per line target to encourage larger type for print
+    const lockedFontSize = optimalFontSize(medianWidth, 52);
 
     // Choose font family based on style pack (fallback to system stacks)
     const stylePackId = (obj as any)?.stylePackId || (prefs as any)?.stylePackId || 'storybook_watercolor';
@@ -261,8 +262,9 @@ export async function decidePrintAndLayouts(
         illustrationRect: rects.illustrationRect,
         textRect: rects.textRect,
         fontFamily: chosen === 'card' ? stack.bodyFamily : stack.bodyFamily,
-        fontSizePx: Math.max(lockedFontSize, Math.floor(lockedFontSize * 1.15)),
-        lineHeight: 1.3,
+        // Encourage bigger text with slightly more leading for legibility
+        fontSizePx: Math.floor(lockedFontSize * 1.25),
+        lineHeight: 1.35,
         textAlign: 'left',
         backgroundCard: rects.backgroundCard,
       };

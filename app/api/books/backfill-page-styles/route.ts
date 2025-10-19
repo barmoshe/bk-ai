@@ -37,12 +37,15 @@ export async function POST(req: NextRequest) {
         if (exists && !overwrite) continue;
         try {
           await fs.mkdir(pageDir, { recursive: true });
+          const textures = ['watercolor', 'canvas', 'linen', 'grain'] as const;
+          const tex = textures[p.pageIndex % textures.length];
           const baseline = {
             palette: ['#FF595E', '#FFCA3A', '#8AC926', '#1982C4', '#6A4C93'],
             layoutStyle: p.layout || 'imageTop',
-            background: { kind: 'solid', color: '#ffffff' },
+            background: { kind: 'textured', baseColor: '#fff9f2', texture: tex, blend: 'soft-light', intensity: 0.18 },
             saturationBoost: 0.15,
-          };
+            textColor: '#1f2430',
+          } as any;
           await fs.writeFile(stylePath, JSON.stringify(baseline, null, 2), 'utf8');
           wrote += 1;
         } catch {}

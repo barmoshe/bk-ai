@@ -305,7 +305,17 @@ export async function BookOrchestratorWorkflow(bookId: string): Promise<void> {
 
     const handleP = startChild(PageRenderWorkflow, {
       workflowId: `${info.workflowId}:page:${page.pageIndex}`,
-      args: [{ bookId, page, spec: state.spec!, print: state.print!, plan, profile: state.profile, prefs: state.prefs } as PageRenderInput],
+      args: [{
+        bookId,
+        page,
+        spec: state.spec!,
+        print: state.print!,
+        plan,
+        profile: state.profile,
+        prefs: state.prefs,
+        // Use professional rendering with multiple targets for best results
+        multipleRenderTargets: ['screen', 'print']
+      } as PageRenderInput],
     }).then(h => h.result());
     pending.push(handleP);
     if (pending.length >= concurrency) {
