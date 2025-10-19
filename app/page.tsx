@@ -1,127 +1,103 @@
-// @@@SNIPSTART typescript-next-oneclick-page-start
-'use client'
-import Head from 'next/head';
-import React, { useState, useRef } from 'react';
-import { v4 as uuid4 } from 'uuid';
-// @@@SNIPEND
+'use client';
 
-// @@@SNIPSTART typescript-next-oneclick-page-vars
+import { Card } from './components/ui/Card';
+import { Button } from './components/ui/Button';
+import Link from 'next/link';
 
-interface ProductProps {
-  product: {
-    id: number;
-    name: string;
-    price: string;
-  };
+export default function Home() {
+  const tiles = [
+    {
+      title: 'Create New Book',
+      description: 'Start a new AI-generated children\'s book with your own character and story',
+      icon: '✨',
+      href: '/create',
+      color: 'from-purple-500 to-pink-500',
+    },
+    {
+      title: 'My Books',
+      description: 'Browse and read all the books you\'ve created',
+      icon: '📚',
+      href: '/books',
+      color: 'from-blue-500 to-cyan-500',
+    },
+    {
+      title: 'View Progress',
+      description: 'Track the status of books currently being generated',
+      icon: '📊',
+      href: '/progress',
+      color: 'from-green-500 to-emerald-500',
+    },
+    {
+      title: 'Preferences',
+      description: 'Configure voice, speech, and accessibility settings',
+      icon: '⚙️',
+      href: '/prefs',
+      color: 'from-orange-500 to-amber-500',
+    },
+  ];
+
+  return (
+    <div className='mx-auto max-w-6xl'>
+      <div className='mb-12 text-center animate-fade-in'>
+        <h1 className='mb-4 text-5xl font-bold text-gray-900'>
+          Welcome to{' '}
+          <span className='bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
+            AI Book Creator
+          </span>
+        </h1>
+        <p className='text-xl text-gray-600 max-w-2xl mx-auto'>
+          Create personalized, beautifully illustrated children's books powered by AI. 
+          Design characters, craft stories, and bring your imagination to life!
+        </p>
+      </div>
+
+      <div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-12'>
+        {tiles.map((tile, index) => (
+          <Link key={tile.href} href={tile.href}>
+            <Card
+              className='h-full transition-all duration-300 hover:scale-105 animate-slide-up'
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className={`inline-flex p-4 rounded-2xl bg-gradient-to-br ${tile.color} mb-4`}>
+                <span className='text-4xl'>{tile.icon}</span>
+              </div>
+              <h2 className='text-2xl font-bold text-gray-900 mb-2'>{tile.title}</h2>
+              <p className='text-gray-600'>{tile.description}</p>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      <div className='card bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200 text-center'>
+        <h3 className='text-2xl font-bold text-gray-900 mb-3'>🚀 Quick Start</h3>
+        <p className='text-gray-700 mb-6 max-w-2xl mx-auto'>
+          Ready to create your first book? Click below to design your character, 
+          choose a story topic, and watch as AI brings it to life with beautiful illustrations!
+        </p>
+        <Link href='/create'>
+          <Button size='lg' className='text-lg'>
+            ✨ Create Your First Book
+          </Button>
+        </Link>
+      </div>
+
+      <div className='mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 text-center'>
+        <div className='p-6'>
+          <div className='text-4xl mb-3'>🎨</div>
+          <h4 className='font-bold text-gray-900 mb-2'>AI-Powered Art</h4>
+          <p className='text-sm text-gray-600'>Beautiful, consistent illustrations generated for every page</p>
+        </div>
+        <div className='p-6'>
+          <div className='text-4xl mb-3'>📖</div>
+          <h4 className='font-bold text-gray-900 mb-2'>Custom Stories</h4>
+          <p className='text-sm text-gray-600'>Age-appropriate narratives tailored to your preferences</p>
+        </div>
+        <div className='p-6'>
+          <div className='text-4xl mb-3'>🔊</div>
+          <h4 className='font-bold text-gray-900 mb-2'>Read Aloud</h4>
+          <p className='text-sm text-gray-600'>Built-in text-to-speech with customizable voices</p>
+        </div>
+      </div>
+    </div>
+  );
 }
-
-const products = [
-  {
-    id: 1,
-    name: 'PDF Book',
-    price: '$49',
-  },
-  {
-    id: 2,
-    name: 'Kindle Book',
-    price: '$49',
-  },
-];
-
-type ITEMSTATE = 'NEW' | 'ORDERING' |  'ORDERED' | 'ERROR';
-// @@@SNIPEND
-
-// @@@SNIPSTART typescript-next-oneclick-page-product
-const Product: React.FC<ProductProps> = ({ product }) => {
-  const itemId = product.id;
-  const [state, setState] = useState<ITEMSTATE>('NEW');
-  const [transactionId, setTransactionId] = React.useState(uuid4());
-
-  const buyProduct = () => {
-    setState('ORDERING');
-    fetch('/api/startBuy', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ itemId, transactionId }),
-    })
-      .then(() => {
-        setState('ORDERED');
-      })
-      .catch(() => {
-        setState('ERROR');
-      });
-  };
-
-  const buyStyle = "w-full bg-white hover:bg-blue-200 bg-opacity-75 backdrop-filter backdrop-blur py-2 px-4 rounded-md text-sm font-medium text-gray-900 text-center";
-  const orderingStyle = "w-full bg-yellow-500 bg-opacity-75 backdrop-filter backdrop-blur py-2 px-4 rounded-md text-sm font-medium text-gray-900 text-center";
-  const orderStyle = "w-full bg-green-500 bg-opacity-75 backdrop-filter backdrop-blur py-2 px-4 rounded-md text-sm font-medium text-gray-900 text-center";
-  const errorStyle = "w-full bg-white hover:bg-blue-200 bg-opacity-75 backdrop-filter backdrop-blur py-2 px-4 rounded-md text-sm font-medium text-gray-900 text-center";
-
-  return (
-    <div key={product.id} className="relative group">
-      <div className="mt-4 flex items-center justify-between text-base font-medium text-gray-900 space-x-8">
-        <h3>{product.name}</h3>
-        <p>{product.price}</p>
-      </div>
-      <div className="aspect-w-4 aspect-h-3 rounded-lg overflow-hidden bg-gray-100">
-        <div className="flex items-end p-4" aria-hidden="true">
-          {
-            {
-              NEW:     ( <button onClick={buyProduct} className={buyStyle}> Buy Now </button> ),
-              ORDERING: ( <div className={orderingStyle}>Orderering</div> ),
-              ORDERED: ( <div className={orderStyle}>Ordered</div> ),
-              ERROR:   ( <button onClick={buyProduct} className={errorStyle}>Error! Click to Retry </button> ),
-            }[state]
-          }
-        </div>
-      </div>
-    </div>
-  );
-};
-// @@@SNIPEND
-
-// @@@SNIPSTART typescript-next-oneclick-page-productlist
-const ProductList: React.FC = () => {
-  return (
-    <div className="bg-white">
-      <div className="max-w-2xl mx-auto py-16 px-4 sm:py-24 sm:px-6 lg:max-w-7xl lg:px-8">
-        <div className="mt-6 grid grid-cols-1 gap-x-8 gap-y-8 sm:grid-cols-2 sm:gap-y-10 md:grid-cols-4">
-          {products.map((product) => (
-            <Product product={product} key={product.id} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-};
-// @@@SNIPEND
-
-// @@@SNIPSTART typescript-next-oneclick-page-home
-const Home: React.FC = () => {
-  return (
-    <div className="pt-8 pb-80 sm:pt-12 sm:pb-40 lg:pt-24 lg:pb-48">
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 sm:static">
-        <Head>
-          <title>Temporal + Next.js One-Click Purchase</title>
-          <link rel="icon" href="/favicon.ico" />
-        </Head>
-        <header className="relative overflow-hidden">
-          <div className="sm:max-w-lg">
-            <h1 className="text-4xl font font-extrabold tracking-tight text-gray-900 sm:text-6xl">
-              Temporal.io + Next.js One Click Purchase
-            </h1>
-            <p className="mt-4 text-xl text-gray-500">
-              Click on the item to buy it now.
-            </p>
-          </div>
-        </header>
-        <ProductList />
-      </div>
-    </div>
-  );
-};
-
-export default Home;
-// @@@SNIPEND

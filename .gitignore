@@ -35,3 +35,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 temporal/lib
+data/
+generated/
+v2/node_modules/@jridgewell/sourcemap-codec/types/scopes.d.cts.map
+/v2/node_modules

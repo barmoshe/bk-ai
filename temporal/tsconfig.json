@@ -6,7 +6,13 @@
     "declarationMap": true,
     "sourceMap": true,
     "rootDir": "./src",
-    "outDir": "./lib"
+    "outDir": "./lib",
+    "esModuleInterop": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "src/__tests__/**",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ]
 }

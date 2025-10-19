@@ -2,32 +2,143 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+/* Typing dots bounce smoothness */
+.animate-bounce {
+  animation-duration: 0.9s;
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
+  * {
+    @apply border-purple-200;
+  }
+  
   :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --tap-target-min: 44px;
+    --font-body-size: 18px;
+    --font-title-size: 32px;
+    --transition-speed: 200ms;
+    --color-bg: #faf9ff;
+    --color-text: #111827;
+    --color-primary: #a855f7;
+    --color-accent: #ec4899;
+    --color-muted: #e5e7eb;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 min-h-screen text-gray-900;
+    /* Expose CSS variables for dynamic typography in UI preview */
+    --font-body: 'Atkinson Hyperlegible', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-heading: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-body-size: 18px;
+    --font-line-height: 1.6;
+  }
+
+  /* Focus visible for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+@layer components {
+  .card {
+    @apply bg-white rounded-2xl shadow-lg border border-purple-100 p-6 hover:shadow-xl transition-shadow duration-300;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
+    min-height: var(--tap-target-min);
+  }
+  
+  .btn-primary:not(:disabled):hover {
+    @apply scale-105;
+  }
+  
+  .btn-secondary {
+    @apply bg-white hover:bg-purple-50 text-purple-700 font-semibold px-6 py-3 rounded-xl border-2 border-purple-300 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    min-height: var(--tap-target-min);
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-purple-50 text-purple-700 font-semibold px-4 py-2 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply bg-error hover:bg-error-dark text-white font-semibold px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    min-height: var(--tap-target-min);
+  }
+  
+  .input-field {
+    @apply w-full border-2 border-purple-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 bg-white disabled:bg-gray-100 disabled:cursor-not-allowed;
+    min-height: var(--tap-target-min);
+  }
+
+  .label {
+    @apply block text-sm font-semibold text-gray-700 mb-2;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-primary-100 text-primary-700;
+  }
+
+  .badge-success {
+    @apply badge bg-positive-light text-positive-dark;
+  }
+
+  .badge-warning {
+    @apply badge bg-warn-light text-warn-dark;
+  }
+
+  .badge-error {
+    @apply badge bg-error-light text-error-dark;
+  }
+
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded;
+  }
+
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-gray-300 border-t-primary-600;
+  }
+
+  /* TextBlock typography */
+  .tb {
+    @apply space-y-2 text-gray-900;
+    font-family: var(--font-body);
+  }
+  .tb-compact {
+    @apply space-y-1;
+  }
+  .tb-line {
+    @apply text-lg leading-7;
+    font-size: var(--font-body-size);
+    line-height: var(--font-line-height);
+  }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* Print styles */
+@media print {
+  @page { size: A4 portrait; margin: 14mm; }
+  body { background: white !important; }
+  .page { break-after: page; }
+  img { max-width: 100%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .no-print { display: none !important; }
 }
