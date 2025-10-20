@@ -69,8 +69,8 @@ export function breakTextIntoLines(
   if (words.length === 0) return [];
 
   const lines: TextLine[] = [];
-  const avgCharWidth = config.fontSize * 0.5; // Approximate character width
-  const spaceWidth = config.fontSize * 0.3;
+  const avgCharWidth = config.fontSize * 0.56; // Slightly more conservative width to wrap earlier
+  const spaceWidth = config.fontSize * 0.33;
 
   let currentLine: string[] = [];
   let currentWidth = 0;
@@ -189,7 +189,8 @@ export function generateTextSVG(
       y: idx * lineHeightPx,
     }));
   } else {
-    const computed = breakTextIntoLines(text, box.width, config);
+    const wrapWidth = Math.floor(box.width * 0.94);
+    const computed = breakTextIntoLines(text, wrapWidth, config);
     lineItems = computed.map(l => ({ text: l.text, width: l.width, y: l.y }));
   }
 
@@ -227,7 +228,10 @@ export function generateTextSVG(
       style="font-feature-settings: ${fontFeatureSettings}">${escapeXml(line.text)}</text>`;
   }).join('\n    ');
 
-  return textElements;
+  // Define a clip path to ensure text never spills outside the box
+  const clipId = `tb_${box.x}_${box.y}_${box.width}_${box.height}`;
+  const clipDefs = `<defs><clipPath id="${clipId}"><rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}"/></clipPath></defs>`;
+  return `${clipDefs}<g clip-path="url(#${clipId})">${textElements}</g>`;
 }
 
 /**

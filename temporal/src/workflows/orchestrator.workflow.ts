@@ -313,8 +313,9 @@ export async function BookOrchestratorWorkflow(bookId: string): Promise<void> {
         plan,
         profile: state.profile,
         prefs: state.prefs,
-        // Use professional rendering with multiple targets for best results
-        multipleRenderTargets: ['screen', 'print']
+        // Optimized: Generate print version only for faster rendering (~20s instead of ~39s)
+        // Screen version can be generated on-demand later if needed
+        multipleRenderTargets: ['print']
       } as PageRenderInput],
     }).then(h => h.result());
     pending.push(handleP);

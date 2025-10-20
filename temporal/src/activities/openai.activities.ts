@@ -4,7 +4,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Context } from '@temporalio/activity';
 import { ApplicationFailure } from '@temporalio/common';
-import { CharacterSpec, BookPrefs, PageJSON, StyleProfile, PageLayoutPlan } from '../types';
+import { CharacterSpec, BookPrefs, PageJSON, StyleProfile, PageLayoutPlan, BorderEffectType, BorderEffectConfig } from '../types';
 import { buildPageImagePrompt } from '../lib/prompts/pageImage';
 import { composeImagePrompt } from '../lib/promptComposer';
 import { exists } from '../lib/cache';
@@ -292,7 +292,12 @@ export async function generateOutlineAndPagesJSON(
       model,
       temperature,
       system: buildPagesSystem(prefs),
-      user: buildPagesUser(canon, prefs),
+      user: (() => {
+        // Append strong guidance for border selection (favor non-'none') without changing schema
+        const base = buildPagesUser(canon, prefs);
+        const guidance = `\n\nAdditional layout guidance (non-breaking): For each page, choose a borderEffect from this set: [professionalFrame, paintedEdge, modernCard, vintageFrame, storybookCorners, softVignette, photoMatte, tornPaper, polaroid, sketchDrawn, comicBook, neonGlow, filmStrip]. Prefer a tasteful subtle effect by default (professionalFrame or paintedEdge). Only use 'none' if a border would clash with composition or reduce readability. Consider age, mood, and style: younger/playful → storybookCorners or modernCard; watercolor → paintedEdge; classic → professionalFrame or vintageFrame; cinematic/action → comicBook or filmStrip; emotional focus → softVignette; gallery/clean → photoMatte; handmade/scrapbook → tornPaper or polaroid. Return 'borderEffect' and optional 'borderConfig' per page.`;
+        return typeof base === 'string' ? base + guidance : base;
+      })(),
       schema: { name: 'PagesResponse', schema: PagesResponseSchemaJson },
       timeoutMs: OPENAI_PAGES_TIMEOUT_MS,
     });
@@ -411,7 +416,26 @@ export async function generateOutlineAndPagesJSON(
         }
       }
       const sentences = text ? text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean) : [];
-      refined.push({ ...p, text, formatted: sentences.length ? { lines: sentences } : undefined });
+      // Border selection: map AI-provided fields if present; default to none
+      let borderEffect: BorderEffectType | undefined = (p as any)?.borderEffect || undefined;
+      const borderConfig: BorderEffectConfig | undefined = (p as any)?.borderConfig || undefined;
+
+      // Deterministic fallback: prefer a tasteful default if missing
+      if (!borderEffect || borderEffect === 'none') {
+        // Simple heuristic based on layout and tone
+        const layoutForBorder = p.layout || 'imageTop';
+        if (/imageTop|imageLeft|imageRight/i.test(layoutForBorder)) {
+          borderEffect = 'professionalFrame';
+        }
+      }
+
+      refined.push({
+        ...p,
+        text,
+        formatted: sentences.length ? { lines: sentences } : undefined,
+        borderEffect: borderEffect ?? 'professionalFrame',
+        borderConfig,
+      });
     }
     pages = refined;
   }

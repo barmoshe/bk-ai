@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Skeleton } from '../components/ui/Skeleton';
-import ImageWithFallback from '../components/ImageWithFallback';
+import BookCoverImage from '../components/BookCoverImage';
 
 const ROOT = process.env.BOOKS_DATA_DIR ?? './data/book';
 
@@ -19,11 +19,22 @@ async function getBooks() {
           const manifestRaw = await fs.readFile(manifestPath, 'utf8');
           const manifest = JSON.parse(manifestRaw);
           
-          // Try to get first page image
+          // Try to get first page image (prefer print version, fallback to regular jpeg or preview)
           let coverImage = null;
           if (manifest.pages && manifest.pages.length > 0) {
             const firstPage = manifest.pages[0];
-            coverImage = `/data/${id}/pages/${firstPage.pageIndex}/page-print.jpg`;
+            // Priority: jpegPrintPath > jpegPath > preview.jpg > pngPath
+            if (firstPage.jpegPrintPath) {
+              // Strip 'data/book/' prefix since Next.js /data route already points to data/book
+              const pathWithoutPrefix = firstPage.jpegPrintPath.replace(/^data\/book\//, '');
+              coverImage = `/data/${pathWithoutPrefix}`;
+            } else if (firstPage.jpegPath) {
+              const pathWithoutPrefix = firstPage.jpegPath.replace(/^data\/book\//, '');
+              coverImage = `/data/${pathWithoutPrefix}`;
+            } else if (firstPage.pageIndex) {
+              // Try preview.jpg as fallback
+              coverImage = `/data/${id}/pages/${firstPage.pageIndex}/preview.jpg`;
+            }
           }
           
           return {
@@ -87,17 +98,7 @@ export default async function BooksPage() {
           {books.map(book => (
             <Link key={book.id} href={`/book/${book.id}`}>
               <Card className='h-full transition-all duration-300 hover:scale-105 p-0 overflow-hidden'>
-                {book.coverImage ? (
-                  <ImageWithFallback
-                    src={book.coverImage}
-                    alt={book.title}
-                    className='w-full aspect-video'
-                  />
-                ) : (
-                  <div className='w-full aspect-video bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center'>
-                    <span className='text-6xl'>📖</span>
-                  </div>
-                )}
+                <BookCoverImage src={book.coverImage} alt={book.title} />
                 <div className='p-4'>
                   <h3 className='font-bold text-lg text-gray-900 mb-2 line-clamp-2'>
                     {book.title}

@@ -5,7 +5,7 @@
 
 import sharp from 'sharp';
 import { PrintProfile } from '../config/print-profiles';
-import type { BackgroundSpec } from '../types';
+import type { BackgroundSpec, BorderEffectType, BorderEffectConfig } from '../types';
 import { generateTextSVG, TypographyConfig, TextBox } from './typography';
 import { getFontStackForStylePack } from './styleFonts';
 import { buildEmbeddedCssFromStack } from './fontEmbed';
@@ -91,7 +91,7 @@ export class LayoutEngine {
   }
 
   private layoutImageTop(safe: LayoutRect): PageLayout {
-    const gutter = Math.floor(safe.height * 0.04);
+    const gutter = Math.floor(safe.height * 0.045);
     const imgHeight = Math.floor(safe.height * 0.55);
 
     return {
@@ -101,17 +101,19 @@ export class LayoutEngine {
         width: safe.width,
         height: imgHeight,
       },
-      text: {
-        x: safe.x,
-        y: safe.y + imgHeight + gutter,
-        width: safe.width,
-        height: safe.height - imgHeight - gutter,
-      },
+      text: (() => {
+        const x = safe.x;
+        const y = safe.y + imgHeight + gutter;
+        const w = safe.width;
+        const h = safe.height - imgHeight - gutter;
+        const pad = Math.floor(w * 0.03);
+        return { x: x + pad, y, width: w - pad * 2, height: h };
+      })(),
     };
   }
 
   private layoutImageLeft(safe: LayoutRect): PageLayout {
-    const gutter = Math.floor(safe.width * 0.04);
+    const gutter = Math.floor(safe.width * 0.05);
     const imgWidth = Math.floor(safe.width * 0.45);
 
     return {
@@ -121,17 +123,17 @@ export class LayoutEngine {
         width: imgWidth,
         height: safe.height,
       },
-      text: {
-        x: safe.x + imgWidth + gutter,
-        y: safe.y,
-        width: safe.width - imgWidth - gutter,
-        height: safe.height,
-      },
+      text: (() => {
+        const x = safe.x + imgWidth + gutter;
+        const w = safe.width - imgWidth - gutter;
+        const pad = Math.floor(w * 0.03);
+        return { x: x + pad, y: safe.y, width: w - pad * 2, height: safe.height };
+      })(),
     };
   }
 
   private layoutImageRight(safe: LayoutRect): PageLayout {
-    const gutter = Math.floor(safe.width * 0.04);
+    const gutter = Math.floor(safe.width * 0.05);
     const imgWidth = Math.floor(safe.width * 0.45);
 
     return {
@@ -141,12 +143,12 @@ export class LayoutEngine {
         width: imgWidth,
         height: safe.height,
       },
-      text: {
-        x: safe.x,
-        y: safe.y,
-        width: safe.width - imgWidth - gutter,
-        height: safe.height,
-      },
+      text: (() => {
+        const x = safe.x;
+        const w = safe.width - imgWidth - gutter;
+        const pad = Math.floor(w * 0.03);
+        return { x: x + pad, y: safe.y, width: w - pad * 2, height: safe.height };
+      })(),
     };
   }
 
@@ -161,7 +163,7 @@ export class LayoutEngine {
       text: {
         x: safe.x + Math.floor(safe.width * 0.06),
         y: safe.y + Math.floor(safe.height * 0.58),
-        width: Math.floor(safe.width * 0.88),
+        width: Math.floor(safe.width * 0.84),
         height: Math.floor(safe.height * 0.34),
       },
     };
@@ -172,7 +174,7 @@ export class LayoutEngine {
     const bandH = Math.floor(safe.height * 0.28);
     return {
       illustration: { x: safe.x, y: safe.y, width: safe.width, height: safe.height },
-      text: { x: safe.x + Math.floor(safe.width * 0.06), y: safe.y + safe.height - bandH - Math.floor(safe.height * 0.02), width: Math.floor(safe.width * 0.88), height: bandH },
+      text: { x: safe.x + Math.floor(safe.width * 0.06), y: safe.y + safe.height - bandH - Math.floor(safe.height * 0.02), width: Math.floor(safe.width * 0.84), height: bandH },
       backgroundCard: undefined,
     };
   }
@@ -199,12 +201,14 @@ export class LayoutEngine {
         width: safe.width,
         height: imgHeight,
       },
-      text: {
-        x: safe.x + pad,
-        y: safe.y + imgHeight + pad,
-        width: safe.width - pad * 2,
-        height: safe.height - imgHeight - pad * 2,
-      },
+      text: (() => {
+        const x = safe.x + pad;
+        const y = safe.y + imgHeight + pad;
+        const w = safe.width - pad * 2;
+        const h = safe.height - imgHeight - pad * 2;
+        const inner = Math.floor(w * 0.03);
+        return { x: x + inner, y, width: w - inner * 2, height: h };
+      })(),
       backgroundCard: {
         x: safe.x,
         y: safe.y + imgHeight,
@@ -471,6 +475,8 @@ export class RenderPipeline {
     decorationLayers?: Array<{ buffer: Buffer; x: number; y: number; blend?: sharp.Blend }>;
     saturationBoost?: number;
     forcedLines?: string[];
+    borderEffect?: BorderEffectType;
+    borderConfig?: BorderEffectConfig;
   }): Promise<Buffer> {
     // Stage 1: Calculate layout
     const layout = this.layoutEngine.computeLayout(input.layoutStyle);
@@ -480,10 +486,29 @@ export class RenderPipeline {
     const bg = await this.compositor.renderBackground(input.backgroundSpec);
 
     // Stage 3: Prepare illustration
-    const illustration = await this.compositor.prepareIllustration(
+    let illustrationPrepared = await this.compositor.prepareIllustration(
       input.illustrationBuffer,
       layout.illustration
     );
+
+    // Stage 3.1: Apply border effect (if any) to the illustration
+    let preIllustrationShadow: Buffer | null = null;
+    if (input.borderEffect) {
+      try {
+        const { applyBorderEffect, getDefaultBorderConfig } = await import('./border-effects.js');
+        const resolvedCfg = input.borderConfig || getDefaultBorderConfig(input.borderEffect);
+        const result = await applyBorderEffect(illustrationPrepared, { type: input.borderEffect, ...resolvedCfg });
+
+        // In case effect changed dimensions slightly, ensure it still fits the target rect
+        illustrationPrepared = await this.compositor.prepareIllustration(result.illustrationBuffer, layout.illustration);
+        if (result.shadowLayer?.buffer) {
+          preIllustrationShadow = await this.compositor.prepareIllustration(result.shadowLayer.buffer, layout.illustration);
+        }
+      } catch (e) {
+        // Fail-safe: if border effects module is unavailable, proceed without
+        illustrationPrepared = illustrationPrepared;
+      }
+    }
 
     // Stage 4: Build layers
     const layers: RenderLayer[] = [];
@@ -499,9 +524,18 @@ export class RenderPipeline {
       layers.push({ buffer: card, x: 0, y: 0 });
     }
 
+    // Add optional shadow behind illustration (from border effect)
+    if (preIllustrationShadow) {
+      layers.push({
+        buffer: preIllustrationShadow,
+        x: layout.illustration.x,
+        y: layout.illustration.y,
+      });
+    }
+
     // Add illustration
     layers.push({
-      buffer: illustration,
+      buffer: illustrationPrepared,
       x: layout.illustration.x,
       y: layout.illustration.y,
     });

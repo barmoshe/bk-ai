@@ -11,6 +11,38 @@ export const PageSchemaJson: any = {
     imagePrompt: { type: 'string', maxLength: 200 },
     layout: { type: 'string', enum: ['imageRight', 'imageLeft', 'imageTop'] },
     imageUrl: { type: 'string' },
+    // Optional border effect guidance from the AI (non-breaking)
+    borderEffect: {
+      type: 'string',
+      enum: [
+        'none',
+        'professionalFrame',
+        'paintedEdge',
+        'modernCard',
+        'vintageFrame',
+        'storybookCorners',
+        'softVignette',
+        'photoMatte',
+        'tornPaper',
+        'polaroid',
+        'sketchDrawn',
+        'comicBook',
+        'neonGlow',
+        'filmStrip',
+      ],
+    },
+    borderConfig: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        width: { type: 'number' },
+        color: { type: 'string' },
+        shadowOpacity: { type: 'number' },
+        shadowBlur: { type: 'number' },
+        cornerRadius: { type: 'number' },
+        intensity: { type: 'number' },
+      },
+    },
   },
 };
 
@@ -24,6 +56,22 @@ export const PagesResponseSchemaJson: any = {
 };
 
 const allowedLayouts = new Set(['imageRight', 'imageLeft', 'imageTop']);
+const allowedBorders = new Set([
+  'none',
+  'professionalFrame',
+  'paintedEdge',
+  'modernCard',
+  'vintageFrame',
+  'storybookCorners',
+  'softVignette',
+  'photoMatte',
+  'tornPaper',
+  'polaroid',
+  'sketchDrawn',
+  'comicBook',
+  'neonGlow',
+  'filmStrip',
+]);
 
 function coercePage(raw: any, index: number): PageJSON | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -35,6 +83,22 @@ function coercePage(raw: any, index: number): PageJSON | null {
   const layout = allowedLayouts.has(String(layoutRaw)) ? (layoutRaw as PageJSON['layout']) : 'imageTop';
   const imageUrl = typeof raw.imageUrl === 'string' ? raw.imageUrl : '';
   const out: PageJSON = { pageIndex: pageIndexNum, text, imagePrompt, layout, imageUrl };
+  // Optional border fields (carry through if present and valid)
+  const be = typeof (raw as any).borderEffect === 'string' ? String((raw as any).borderEffect) : undefined;
+  if (be && allowedBorders.has(be)) {
+    (out as any).borderEffect = be as any;
+  }
+  const bc = (raw as any).borderConfig;
+  if (bc && typeof bc === 'object') {
+    const cfg: any = {};
+    if (typeof bc.width === 'number') cfg.width = bc.width;
+    if (typeof bc.color === 'string') cfg.color = bc.color;
+    if (typeof bc.shadowOpacity === 'number') cfg.shadowOpacity = bc.shadowOpacity;
+    if (typeof bc.shadowBlur === 'number') cfg.shadowBlur = bc.shadowBlur;
+    if (typeof bc.cornerRadius === 'number') cfg.cornerRadius = bc.cornerRadius;
+    if (typeof bc.intensity === 'number') cfg.intensity = bc.intensity;
+    (out as any).borderConfig = cfg;
+  }
   // Clamp text to <=100 words if present (align with existing behavior)
   if (out.text) {
     const words = out.text.split(/\s+/).filter(Boolean);

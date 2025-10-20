@@ -37,6 +37,7 @@ export interface PagePaths {
     screen: string;
     proof: string;
     print: string;
+    /** Additional print variants will be saved as print-<variantId>.jpg in the same folder */
   };
 }
 
@@ -160,6 +161,26 @@ export async function savePageRender(
   const pagePaths = bookPaths.pages.page(pageIndex);
   const outputPath = pagePaths.renders[profileType];
   
+  await fs.writeFile(outputPath, jpegBuffer);
+  return outputPath;
+}
+
+/**
+ * Save a page render variant (e.g., multiple print backgrounds)
+ * Variants are written alongside the primary render as `<profile>-<variantId>.jpg`.
+ */
+export async function savePageRenderVariant(
+  bookId: string,
+  pageIndex: number,
+  profileType: 'screen' | 'proof' | 'print',
+  variantId: string,
+  jpegBuffer: Buffer
+): Promise<string> {
+  await ensurePageDirectories(bookId, pageIndex);
+  const bookPaths = getBookPaths(bookId);
+  const pagePaths = bookPaths.pages.page(pageIndex);
+  const safeVariant = variantId.replace(/[^a-zA-Z0-9_-]+/g, '-');
+  const outputPath = path.join(pagePaths.renders.root, `${profileType}-${safeVariant}.jpg`);
   await fs.writeFile(outputPath, jpegBuffer);
   return outputPath;
 }

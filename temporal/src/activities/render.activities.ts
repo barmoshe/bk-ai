@@ -12,7 +12,7 @@ import { TypographyConfig, FONT_STACKS } from '../lib/typography';
 import { getFontStackForStylePack } from '../lib/styleFonts';
 import { buildEmbeddedCssFromStack } from '../lib/fontEmbed';
 import { optimalFontSize } from '../lib/layout-grid';
-import { savePageRender, ensurePageDirectories } from '../lib/fileSystem';
+import { savePageRender, ensurePageDirectories, savePageRenderVariant } from '../lib/fileSystem';
 
 const BOOKS_DIR = config.booksDataDir;
 
@@ -356,6 +356,11 @@ export async function renderPageProfessional(
   } catch {}
   const effectiveBackground: BackgroundSpec | undefined = pageAdvice?.background || bookAdvice?.background;
   const saturationBoost = typeof pageAdvice?.saturationBoost === 'number' ? pageAdvice!.saturationBoost : undefined;
+  const printBackgroundVariants: BackgroundSpec[] = (
+    (pageAdvice?.printBackgrounds && pageAdvice.printBackgrounds.length ? pageAdvice.printBackgrounds : undefined) ||
+    (bookAdvice?.printBackgrounds && bookAdvice.printBackgrounds.length ? bookAdvice.printBackgrounds : undefined) ||
+    []
+  );
 
   // Typography configuration (after style advice is available)
   const typographyConfig: TypographyConfig = {
@@ -377,16 +382,49 @@ export async function renderPageProfessional(
     const pipeline = createRenderPipeline(widthPx, heightPx, bleedPx, marginsPx, profile);
 
     // Render page
-    const jpegBuffer = await pipeline.renderPage({
+    // For print: if variants exist, generate multiple outputs; otherwise default to white background
+    const backgroundSpecForProfile = profileType === 'print' ? undefined : effectiveBackground;
+    const baseInput = {
       text: page.text,
       illustrationBuffer,
       layoutStyle: (pageAdvice?.layoutStyle as any) || layout.style,
       typographyConfig,
       backgroundColor: '#ffffff',
-      backgroundSpec: effectiveBackground,
+      backgroundSpec: backgroundSpecForProfile,
       saturationBoost,
       forcedLines: page.formatted?.lines,
-    });
+      borderEffect: page.borderEffect,
+      borderConfig: page.borderConfig,
+    } as const;
+
+    if (profileType === 'print' && printBackgroundVariants.length > 0) {
+      // Variant 0 becomes the canonical print.jpg (and legacy page-print.jpg)
+      for (let i = 0; i < printBackgroundVariants.length; i++) {
+        const variant = printBackgroundVariants[i];
+        const jpegBuffer = await pipeline.renderPage({
+          ...baseInput,
+          // Keep canvas white for clean margins, overlay texture/color via backgroundSpec
+          backgroundColor: '#ffffff',
+          backgroundSpec: variant,
+        });
+
+        if (i === 0) {
+          const outputPath = await savePageRender(bookId, page.pageIndex, profileType, jpegBuffer);
+          outputs[profileType] = outputPath;
+          try {
+            const legacyOut = path.join(BOOKS_DIR, bookId, 'pages', String(page.pageIndex), 'page-print.jpg');
+            await fs.mkdir(path.dirname(legacyOut), { recursive: true });
+            await fs.writeFile(legacyOut, jpegBuffer);
+          } catch {}
+        } else {
+          const variantId = `bg${i + 1}`;
+          await savePageRenderVariant(bookId, page.pageIndex, profileType, variantId, jpegBuffer);
+        }
+      }
+      continue;
+    }
+
+    const jpegBuffer = await pipeline.renderPage(baseInput);
 
     // Save to unified file system
     const outputPath = await savePageRender(bookId, page.pageIndex, profileType, jpegBuffer);
@@ -479,13 +517,14 @@ export async function renderPageJPEGPrintEnhanced(
   const pipeline = createRenderPipeline(widthPx, heightPx, bleedPx, marginsPx, profile);
 
   // Render page
+  // For enhanced print output, ensure a pure white background for production prints
   const jpegBuffer = await pipeline.renderPage({
     text: page.text,
     illustrationBuffer,
     layoutStyle: layout.style,
     typographyConfig,
     backgroundColor: '#ffffff',
-    backgroundSpec: effectiveBackground,
+    backgroundSpec: undefined,
     forcedLines: page.formatted?.lines,
   });
 

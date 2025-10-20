@@ -40,6 +40,10 @@ export interface PageJSON {
   imageUrl: string;
   /** Optional pre-split display lines for UI/print formatting */
   formatted?: { lines: string[] };
+  /** Optional border effect to apply during rendering */
+  borderEffect?: BorderEffectType;
+  /** Optional fine-grained configuration for the chosen border effect */
+  borderConfig?: BorderEffectConfig;
 }
 
 // Print specification chosen by the layout agent
@@ -140,6 +144,35 @@ export interface CharacterDescriptor {
   colorTokens: string[];
 }
 
+// ===============================
+// Border Effects (Rendering)
+// ===============================
+
+export type BorderEffectType =
+  | 'none'
+  | 'professionalFrame'
+  | 'paintedEdge'
+  | 'modernCard'
+  | 'vintageFrame'
+  | 'storybookCorners'
+  | 'softVignette'
+  | 'photoMatte'
+  | 'tornPaper'
+  | 'polaroid'
+  | 'sketchDrawn'
+  | 'comicBook'
+  | 'neonGlow'
+  | 'filmStrip';
+
+export interface BorderEffectConfig {
+  width?: number;
+  color?: string;
+  shadowOpacity?: number;
+  shadowBlur?: number;
+  cornerRadius?: number;
+  intensity?: number;
+}
+
 /**
  * Canonical Character Bible entry for enforcing visual persistence across pages
  */
@@ -213,6 +246,8 @@ export interface PageStyleAdvice {
   palette: string[]; // 3–6 hex colors
   layoutStyle: 'imageTop' | 'imageLeft' | 'imageRight' | 'overlay' | 'card' | 'fullBleed' | 'panelGrid';
   background: BackgroundSpec;
+  /** Optional list of backgrounds specifically for print output variants */
+  printBackgrounds?: BackgroundSpec[];
   decoration?: DecorationPackChoice;
   saturationBoost?: number; // 0..0.4 typical for screen
   textColor?: string;
@@ -222,6 +257,8 @@ export interface BookStyleAdvice {
   defaultPalette: string[];
   defaultLayout: PageStyleAdvice['layoutStyle'];
   background: BackgroundSpec;
+  /** Optional global print backgrounds to offer across pages */
+  printBackgrounds?: BackgroundSpec[];
   decoration?: DecorationPackChoice;
 }
 
